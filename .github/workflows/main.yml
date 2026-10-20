@@ -1,35 +1,64 @@
-name: Unpack Project into Repository
+name: Build AnimeDiffusion APK
 
 on:
   push:
     branches: [ "**" ]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  unpack:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Unpack All Files
+      - name: Unpack Project Archive
         run: |
-          if [ -f "AnimeDiffusion_Project.zip" ]; then
-            echo "Розпаковуємо архів..."
-            unzip -o AnimeDiffusion_Project.zip
-            rm AnimeDiffusion_Project.zip
+          echo "=== Розпакування архіву ==="
+          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Знайдено: $ZIP_FILE. Розпаковуємо..."
+            unzip -o "$ZIP_FILE"
           fi
 
-      - name: Commit and Push to Main
+      - name: Fix Gradle Build Config
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Розпаковано файли проєкту з архіву" || exit 0
-          git
-          push
+          sed -i '/signingConfig = signingConfigs/d' app/build.gradle.kts || true
+
+      - name: Install Vulkan Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libvulkan-dev glslc
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.6'
+
+      - name: Install Android NDK and CMake
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125" "cmake;3.22.1"
+
+      - name: Fetch stable-diffusion.cpp
+        run: |
+          mkdir -p app/src/main/cpp/sd_cpp
+          if [ ! -f "app/src/main/cpp/sd_cpp/CMakeLists.txt" ]; then
+            git clone --depth 1 --recursive https://github.com/leejet/stable-diffusion.cpp.git app/src/main/cpp/sd_cpp
+          fi
+
+      - name: Build Debug APK
+        run: |
+          chmod +x ./gradlew || true
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimeDiffusion-SDXL-v1.0
+          path: app/build/outputs/apk/debug/*.apk
