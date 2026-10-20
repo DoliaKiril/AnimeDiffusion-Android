@@ -1,60 +1,35 @@
-name: Build AnimeDiffusion APK
+name: Unpack Project into Repository
 
 on:
   push:
     branches: [ "**" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  unpack:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Unpack Project Zip
-        run: |
-          echo "=== Пошук та розпакування архіву ==="
-          ls -la
-          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
-          if [ -n "$ZIP_FILE" ]; then
-            echo "Знайдено архів: $ZIP_FILE. Розпаковуємо..."
-            unzip -o "$ZIP_FILE"
-          else
-            echo "Архів не знайдено, перевіряємо вже розпаковані файли..."
-          fi
-          ls -la
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Android NDK and CMake
+      - name: Unpack All Files
         run: |
-          echo "=== Встановлення NDK через вбудований Android SDK ==="
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125" "cmake;3.22.1"
-
-      - name: Fetch stable-diffusion.cpp source
-        run: |
-          mkdir -p app/src/main/cpp/sd_cpp
-          if [ ! -f "app/src/main/cpp/sd_cpp/CMakeLists.txt" ]; then
-            git clone --depth 1 --recursive https://github.com/leejet/stable-diffusion.cpp.git app/src/main/cpp/sd_cpp
+          if [ -f "AnimeDiffusion_Project.zip" ]; then
+            echo "Розпаковуємо архів..."
+            unzip -o AnimeDiffusion_Project.zip
+            rm AnimeDiffusion_Project.zip
           fi
 
-      - name: Ensure Gradle Wrapper
+      - name: Commit and Push to Main
         run: |
-          if [ ! -f "./gradlew" ]; then
-            gradle wrapper --gradle-version 8.6
-          fi
-          chmod +x ./gradlew
-
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: AnimeDiffusion-SDXL-v1.0
-          path: app/build/outputs/apk/debug/*.apk
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Розпаковано файли проєкту з архіву" || exit 0
+          git
+          push
