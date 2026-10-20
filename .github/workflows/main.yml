@@ -32,9 +32,21 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libvulkan-dev glslc spirv-headers || true
+          
+          # Встановлення SPIRV-Headers для CMake
           git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git /tmp/spirv-headers
           cmake -S /tmp/spirv-headers -B /tmp/spirv-headers/build
           sudo cmake --install /tmp/spirv-headers/build
+
+          # Завантаження офіційних Vulkan-Headers (vulkan.hpp)
+          git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Headers.git /tmp/vulkan-headers
+          for sys_inc in /usr/local/lib/android/sdk/ndk/*/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include; do
+            if [ -d "$sys_inc" ]; then
+              sudo cp -r /tmp/vulkan-headers/include/vulkan "$sys_inc/" || true
+            fi
+          done
+          sudo cp -r /tmp/vulkan-headers/include/vulkan /usr/include/ || true
+          sudo cp -r /tmp/vulkan-headers/include/vulkan /usr/local/include/ || true
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -57,6 +69,11 @@ jobs:
           if [ ! -f "app/src/main/cpp/sd_cpp/CMakeLists.txt" ]; then
             git clone --depth 1 --recursive https://github.com/leejet/stable-diffusion.cpp.git app/src/main/cpp/sd_cpp
           fi
+          # Копіюємо vulkan.hpp напряму в папки ggml
+          mkdir -p app/src/main/cpp/sd_cpp/ggml/include/vulkan
+          cp -r /tmp/vulkan-headers/include/vulkan/* app/src/main/cpp/sd_cpp/ggml/include/vulkan/ || true
+          mkdir -p app/src/main/cpp/sd_cpp/ggml/src/ggml-vulkan/vulkan
+          cp -r /tmp/vulkan-headers/include/vulkan/* app/src/main/cpp/sd_cpp/ggml/src/ggml-vulkan/vulkan/ || true
 
       - name: Allow CMake to find host SPIRV-Headers
         run: |
