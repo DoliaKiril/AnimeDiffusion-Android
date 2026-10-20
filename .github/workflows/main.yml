@@ -21,8 +21,10 @@ jobs:
             unzip -o "$ZIP_FILE"
           fi
 
-      - name: Fix Gradle Build Config
+      - name: Enable AndroidX in gradle.properties
         run: |
+          echo "=== Налаштування gradle.properties ==="
+          echo "android.useAndroidX=true" > gradle.properties
           sed -i '/signingConfig = signingConfigs/d' app/build.gradle.kts || true
 
       - name: Install Vulkan Dependencies
