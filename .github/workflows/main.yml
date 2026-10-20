@@ -27,10 +27,16 @@ jobs:
           echo "android.useAndroidX=true" > gradle.properties
           sed -i '/signingConfig = signingConfigs/d' app/build.gradle.kts || true
 
-      - name: Install Vulkan Dependencies
+      - name: Install Vulkan and SPIRV Dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq libvulkan-dev glslc
+          sudo apt-get install -y -qq libvulkan-dev glslc spirv-headers || true
+          # Встановлення офіційних SPIRV-Headers для CMake
+          if ! cmake --find-package -DNAME=SPIRV-Headers -DCOMPILER_ID=GNU -DLANGUAGE=C -DMODE=EXIST 2>/dev/null; then
+            git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git /tmp/spirv-headers
+            cmake -S /tmp/spirv-headers -B /tmp/spirv-headers/build
+            sudo cmake --install /tmp/spirv-headers/build
+          fi
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
