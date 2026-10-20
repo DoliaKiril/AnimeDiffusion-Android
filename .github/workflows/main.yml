@@ -21,10 +21,11 @@ jobs:
             unzip -o "$ZIP_FILE"
           fi
 
-      - name: Enable AndroidX in gradle.properties
+      - name: Configure gradle.properties (AndroidX + 4GB RAM)
         run: |
           echo "=== Налаштування gradle.properties ==="
           echo "android.useAndroidX=true" > gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> gradle.properties
           sed -i '/signingConfig = signingConfigs/d' app/build.gradle.kts || true
 
       - name: Install Vulkan and SPIRV Dependencies
