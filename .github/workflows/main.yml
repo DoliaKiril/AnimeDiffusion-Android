@@ -31,12 +31,9 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libvulkan-dev glslc spirv-headers || true
-          # Встановлення офіційних SPIRV-Headers для CMake
-          if ! cmake --find-package -DNAME=SPIRV-Headers -DCOMPILER_ID=GNU -DLANGUAGE=C -DMODE=EXIST 2>/dev/null; then
-            git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git /tmp/spirv-headers
-            cmake -S /tmp/spirv-headers -B /tmp/spirv-headers/build
-            sudo cmake --install /tmp/spirv-headers/build
-          fi
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git /tmp/spirv-headers
+          cmake -S /tmp/spirv-headers -B /tmp/spirv-headers/build
+          sudo cmake --install /tmp/spirv-headers/build
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -59,6 +56,12 @@ jobs:
           if [ ! -f "app/src/main/cpp/sd_cpp/CMakeLists.txt" ]; then
             git clone --depth 1 --recursive https://github.com/leejet/stable-diffusion.cpp.git app/src/main/cpp/sd_cpp
           fi
+
+      - name: Allow CMake to find host SPIRV-Headers
+        run: |
+          sed -i '1i set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE BOTH)' app/src/main/cpp/CMakeLists.txt
+          sed -i '2i set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)' app/src/main/cpp/CMakeLists.txt
+          sed -i '3i list(APPEND CMAKE_PREFIX_PATH "/usr/local/share/cmake/SPIRV-Headers" "/usr/share/cmake/SPIRV-Headers")' app/src/main/cpp/CMakeLists.txt
 
       - name: Build Debug APK
         run: |
