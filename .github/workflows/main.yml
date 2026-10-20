@@ -33,21 +33,26 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq libvulkan-dev glslc spirv-headers || true
           
-          # 1. SPIRV-Headers для CMake
+          # 1. Встановлення SPIRV-Headers
           git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git /tmp/spirv-headers
           cmake -S /tmp/spirv-headers -B /tmp/spirv-headers/build
           sudo cmake --install /tmp/spirv-headers/build
 
-          # 2. Повний пакет Vulkan-Headers (vulkan/ та vk_video/)
+          # 2. Встановлення Vulkan-Headers
           git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Headers.git /tmp/vulkan-headers
+          
+          # Копіюємо ВСІ заголовки (vulkan, vk_video, spirv) в NDK sysroot
           for sys_inc in /usr/local/lib/android/sdk/ndk/*/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include; do
             if [ -d "$sys_inc" ]; then
-              echo "Копіюємо Vulkan і vk_video в $sys_inc"
+              echo "Копіюємо Vulkan і SPIRV в $sys_inc"
               sudo cp -r /tmp/vulkan-headers/include/* "$sys_inc/" || true
+              sudo cp -r /tmp/spirv-headers/include/* "$sys_inc/" || true
             fi
           done
           sudo cp -r /tmp/vulkan-headers/include/* /usr/include/ || true
+          sudo cp -r /tmp/spirv-headers/include/* /usr/include/ || true
           sudo cp -r /tmp/vulkan-headers/include/* /usr/local/include/ || true
+          sudo cp -r /tmp/spirv-headers/include/* /usr/local/include/ || true
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -70,11 +75,13 @@ jobs:
           if [ ! -f "app/src/main/cpp/sd_cpp/CMakeLists.txt" ]; then
             git clone --depth 1 --recursive https://github.com/leejet/stable-diffusion.cpp.git app/src/main/cpp/sd_cpp
           fi
-          # Копіюємо і vulkan/, і vk_video/ у всі локальні include рушія
+          # Копіюємо і Vulkan, і SPIRV безпосередньо в include рушія
           mkdir -p app/src/main/cpp/sd_cpp/ggml/include
           cp -r /tmp/vulkan-headers/include/* app/src/main/cpp/sd_cpp/ggml/include/ || true
+          cp -r /tmp/spirv-headers/include/* app/src/main/cpp/sd_cpp/ggml/include/ || true
           mkdir -p app/src/main/cpp/sd_cpp/include
           cp -r /tmp/vulkan-headers/include/* app/src/main/cpp/sd_cpp/include/ || true
+          cp -r /tmp/spirv-headers/include/* app/src/main/cpp/sd_cpp/include/ || true
 
       - name: Allow CMake to find host SPIRV-Headers
         run: |
